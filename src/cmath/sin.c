@@ -17,7 +17,7 @@ typedef union {int4 i[2]; double x;} mynumber;
 //-------------------------------------------------------------------------------
 //#include "usncs.h"
 static const mynumber
-/**/          NAN = {{0x00000000, 0x7ff80000 }},/*  NaN                     */
+///**/          NAN = {{0x00000000, 0x7ff80000 }},/*  NaN                     */
 /**/           s1 = {{0x55555555, 0xBFC55555 }},/* -0.16666666666666666     */
 /**/           s2 = {{0x11110ECE, 0x3F811111 }},/*  0.0083333333333323288   */
 /**/           s3 = {{0x19DB08B8, 0xBF2A01A0 }},/* -0.00019841269834414642  */
@@ -506,22 +506,22 @@ sn3 = -1.66666666666664880952546298448555E-01,
 
 void __dubsin(double x, double dx, double w[]);
 void __docos(double x, double dx, double w[]);
-double __mpsin(double x, double dx) {
+double __mpsin(double __attribute__((__unused__)) x, double __attribute__((__unused__)) dx) {
     // TODO(soonhok)
     printf("__mpsin is not implemented yet\n");
     return 0;
 }
-double __mpcos(double x, double dx) {
+double __mpcos(double __attribute__((__unused__)) x, double __attribute__((__unused__)) dx) {
     // TODO(soonhok)
     printf("__mpcos is not implemented yet\n");
     return 0;
 }
-double __mpsin1(double x) {
+double __mpsin1(double __attribute__((__unused__)) x) {
     // TODO(soonhok)
     printf("__mpsin1 is not implemented yet\n");
     return 0;
 }
-double __mpcos1(double x) {
+double __mpcos1(double __attribute__((__unused__)) x) {
     // TODO(soonhok)
     printf("__mpcos1 is not implemented yet\n");
     return 0;
