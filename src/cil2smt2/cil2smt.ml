@@ -100,7 +100,7 @@ let rec translation file_name=
   Simplify.simpleMem := true;
   Simplify.onlyVariableBasics := false;
   List.iter Simplify.doGlobal cil_file.globals;
-  dumpFile defaultCilPrinter Pervasives.stdout "codegen" cil_file;
+  (* dumpFile defaultCilPrinter Pervasives.stdout "codegen" cil_file; *)
   let globals = List.filter is_gfun cil_file.globals in
   let exprs = List.flatten (List.map translate_function globals) in
   match (all is_formula exprs) with
