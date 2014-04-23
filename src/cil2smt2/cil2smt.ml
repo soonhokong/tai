@@ -105,9 +105,8 @@ let rec translation file_name=
   let exprs = List.flatten (List.map translate_function globals) in
   match (all is_formula exprs) with
   | true ->
-     Basic.print_formula IO.stdout (Basic.make_and (List.map extract_formula exprs))
-  | false -> Printf.printf "not all are formula"
-
+    Basic.make_and (List.map extract_formula exprs)
+  | false -> failwith "not all are formula"
 
 and translate_function f : expr list =
   match f with
@@ -362,6 +361,13 @@ let run () =
   let _ = Arg.parse spec
       (fun x -> if Sys.file_exists x then src := x
         else raise (Arg.Bad (x^": No such file"))) usage in
-  translation !src
+  let f = translation !src in
+  let logic_cmd = SetLogic QF_NRA in
+  let out = IO.stdout in
+  Smt2.print out
+    [logic_cmd;
+     Assert f;
+     CheckSAT;
+     Exit;]
 
 let _ = run ()
