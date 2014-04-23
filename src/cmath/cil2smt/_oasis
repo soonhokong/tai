@@ -10,4 +10,6 @@ Executable cil2smt
   BuildTools: ocamlbuild
   MainIs:     cil2smt.ml
   BuildDepends: batteries, cil
+  CompiledObject : native
+  NativeOpt:    -passopt -annot
   
