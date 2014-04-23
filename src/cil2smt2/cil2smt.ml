@@ -315,10 +315,10 @@ and translate_exps exps : expr list =
               | _ -> failwith "not all formula"
             end
         end
-    | CastE _ -> failwith "not now"
-    | AddrOf _ -> failwith "not now"
-    | StartOf _ -> failwith "not now"
-    | Question _ -> failwith "not now"
+    | CastE _ -> failwith "not now castE"
+    | AddrOf _ -> failwith "not now addrOf"
+    | StartOf _ -> failwith "not now startOf"
+    | Question _ -> failwith "not now question"
   in
   List.map translate_exp exps
 
@@ -334,8 +334,8 @@ and translate_instrs ins : expr list =
         | E e' -> F (Basic.Eq (lval, e'))
         | _ -> failwith "should be an expression"
       end
-    | Call _ -> failwith "todo"
-    | Asm _ -> failwith "not now"
+    | Call _ -> failwith "not now call"
+    | Asm _ -> failwith "not now asm"
   in
   List.map translate_inst ins
 
@@ -343,16 +343,16 @@ and translate_lval l : Basic.exp =
   let (lhost, _) = l in
   match lhost with
   | Var vi -> Basic.Var (vi.vname)
-  | _ -> failwith "not now"
+  | _ -> failwith "not now (translate_lval)"
 
 and translate_const (c : Cil.constant) =
   match c with
   | CInt64 (i, _, _) -> failwith "not now int 64"
-  | CStr _ -> failwith "a string"
-  | CWStr _ -> failwith "not now"
-  | CChr _ -> failwith "a char"
+  | CStr _ -> failwith "not now string"
+  | CWStr _ -> failwith "not now CWStr"
+  | CChr _ -> failwith "not now char"
   | CReal (f, _, _) -> Basic.Num f
-  | CEnum _ -> failwith "an enum"
+  | CEnum _ -> failwith "not now enum"
 
 let spec = []
 let usage = "Usage: cil2smt.native [<options>] <.c>\n<options> are: "
