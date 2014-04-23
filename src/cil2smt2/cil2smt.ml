@@ -147,7 +147,7 @@ and translate_stmtkinds skinds : expr list =
          let es2 = List.map extract_formula e2' in
          [F (
              Basic.make_and
-               [ Basic.make_and [be; Basic.make_and es1]; Basic.make_and [Basic.Not be; Basic.make_and es2]]
+               [ Basic.make_or [be; Basic.make_and es1]; Basic.make_or [Basic.Not be; Basic.make_and es2]]
            )]
       | _ -> failwith "should all be formula"
       end
