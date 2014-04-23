@@ -362,12 +362,16 @@ let run () =
       (fun x -> if Sys.file_exists x then src := x
         else raise (Arg.Bad (x^": No such file"))) usage in
   let f = translation !src in
+  let vars = Set.to_list (collect_vars_in_formula f) in
+  let var_decls = List.map (fun v -> DeclareFun v) vars in
   let logic_cmd = SetLogic QF_NRA in
   let out = IO.stdout in
   Smt2.print out
-    [logic_cmd;
-     Assert f;
-     CheckSAT;
-     Exit;]
+    (List.flatten
+       [[logic_cmd];
+        var_decls;
+        [Assert f;
+         CheckSAT;
+         Exit]])
 
 let _ = run ()
