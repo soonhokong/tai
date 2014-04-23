@@ -1,4 +1,4 @@
-S src
-B _build/src
+S ./
+B _build/
 PKG batteries
 PKG cil
