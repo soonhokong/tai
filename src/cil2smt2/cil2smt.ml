@@ -354,6 +354,14 @@ and translate_const (c : Cil.constant) =
   | CReal (f, _, _) -> Basic.Num f
   | CEnum _ -> failwith "an enum"
 
+let spec = []
+let usage = "Usage: cil2smt.native [<options>] <.c>\n<options> are: "
 
-let _ =
-  translation "./sin.c"
+let run () =
+  let src = ref "" in
+  let _ = Arg.parse spec
+      (fun x -> if Sys.file_exists x then src := x
+        else raise (Arg.Bad (x^": No such file"))) usage in
+  translation !src
+
+let _ = run ()
