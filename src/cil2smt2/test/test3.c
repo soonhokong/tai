@@ -12,7 +12,7 @@ double msin(double x) {
     printf("x * hpinv = %.20g\n", x * hpinv);
     t   = (x * hpinv + toint);
     xn  = t - toint;
-    v = t;
+    v   = t;
     y   = (x - xn * mp1) - xn * mp2;
     printf("t = %.20g\n", t);
     printf("xn = %.20g\n", xn);
