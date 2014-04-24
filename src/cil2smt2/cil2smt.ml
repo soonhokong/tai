@@ -4,6 +4,7 @@ open IO
 open Smt2_cmd
 open Basic
 open Int64
+open Vcmap
 
 type expr =
   | E of Basic.exp
@@ -53,44 +54,20 @@ class removeUnnecessaryCodeVisitor =
       match stmt.skind with
      | Instr ins ->
         DoChildren
-     | Return _ ->
-        ChangeTo Cil.invalidStmt
-     | Goto _ ->
-        ChangeTo Cil.invalidStmt
-     | Break _ ->
-        ChangeTo Cil.invalidStmt
-     | Continue _ ->
-        ChangeTo Cil.invalidStmt
-     | If _ ->
-        DoChildren
-     | Switch _ ->
-        ChangeTo Cil.invalidStmt
-     | Loop _ ->
-        ChangeTo Cil.invalidStmt
      | Block b ->
         DoChildren
-     | TryFinally _ ->
-        ChangeTo Cil.invalidStmt
-     | TryExcept _ ->
-        ChangeTo Cil.invalidStmt
+     | If _ ->
+        DoChildren
+     | Return _
+     | Goto _
+     | Break _
+     | Continue _
+     | Switch _
+     | Loop _
+     | TryFinally _
+     | TryExcept _
      | ComputedGoto _ ->
         ChangeTo Cil.invalidStmt
-  end
-
-class ssaTransformVisitor =
-  object(self)
-    inherit nopCilVisitor as super
-    method vinst ins  =
-      match ins with
-      | Cil.Set ((host, l), e, l') ->
-         begin
-           match host with
-           | Var vi ->
-              vi.vname <- vi.vname ^ (gensym ());
-              ChangeTo [Cil.Set ((Var vi, l), e, l')]
-           | _ -> DoChildren
-         end
-      | _ -> DoChildren
   end
 
 let debug = ref false
@@ -98,11 +75,6 @@ let debug = ref false
 let rec translation file_name=
   let cil_file = Frontc.parse file_name () in
   visitCilFile (new removeUnnecessaryCodeVisitor) cil_file;
-  visitCilFile (new ssaTransformVisitor) cil_file;
-  Simplify.splitStructs := true;
-  Simplify.simpleMem := true;
-  Simplify.onlyVariableBasics := false;
-  List.iter Simplify.doGlobal cil_file.globals;
   begin
     match !debug with
     | true ->
