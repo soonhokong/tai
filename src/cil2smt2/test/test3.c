@@ -1,6 +1,6 @@
 #include <stdio.h>
 
-double msin(double x) {
+double f(double x) {
     printf("x = %.20g\n", x);
     double big = 52776558133248.0;
     double mp1 = 1.5707963407039642;
@@ -19,9 +19,4 @@ double msin(double x) {
     printf("v = %.20g\n", v);
     printf("y = %.20g\n", y);
     return y;
-}
-
-int main() {
-    printf("%g\n", msin(2.56));
-    return 0;
 }

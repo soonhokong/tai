@@ -1,4 +1,4 @@
-double abs(double x) {
+double f(double x) {
     double ret;
     if (x > 0) {
         ret = x;

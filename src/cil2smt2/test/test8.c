@@ -1,7 +1,7 @@
-void f() {
-    int n;
-    double a;
+#include "get_low_nbits.h"
 
+double f(double a) {
+    int n = GET_LOW_NBITS(a, 2);
     switch (n) {
     case 0:
     case 2:
@@ -18,4 +18,5 @@ void f() {
         }
         break;
     }
+    return  a;
 }

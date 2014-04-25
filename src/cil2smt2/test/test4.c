@@ -1,6 +1,4 @@
-#include <stdio.h>
-
-double msin(double x) {
+double f(double x) {
     /*---------------------------- 2^-26 < |x|< 0.25 ----------------------*/
     double s1 = -0.16666666666666666;
     double s2 =  0.0083333333333323288;
@@ -13,9 +11,4 @@ double msin(double x) {
     double res = x+t;
     double cor = (x-res)+t;
     return (res == res + 1.07 * cor) ? res : 99999;
-}
-
-int main() {
-    printf("%.20g\n", msin(0.2000002811453019));
-    return 0;
 }
