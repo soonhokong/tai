@@ -535,7 +535,9 @@ and translate_instrs ins (vc : Vcmap.t) : expr list * Vcmap.t =
           end
         | (Var vi, Field _) ->
           (* ignore *)
-          failwith "todo Var + Field"
+          Errormsg.error
+            "%a: var + field is not supported, yet" d_lval lval;
+          failwith "todo"
         | (Var vi, Index (exp, _) ) ->
           (* array assignment *)
           let index = extract_index exp in
