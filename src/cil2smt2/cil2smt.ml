@@ -433,15 +433,22 @@ and translate_instrs ins (vc : Vcmap.t) : expr list * Vcmap.t =
               let values = List.of_enum (Map.values fmap) in
               F (Basic.make_and values), vc3
             | false ->
+              let ty = typeOfLval lval in
               let exps, vc1 = translate_exps [e] vc in
               let e' = List.hd exps in
               let s = extract_var_name lval in
               let vc2 = update s vc1 in
               let lval, vc3 = translate_lval lval vc2 in
               begin
-                match e' with
-                | E e' -> F (Basic.Eq (lval, e')), vc3
-                | _ -> failwith "should be an expression"
+                match (e', ty) with
+                | (E e', intType) ->
+                  (F (Basic.make_and [Basic.Eq (lval, e');
+                                      Basic.Ge (Sin (Mul [Num pi; lval]), Num (~-. eps));
+                                      Basic.Le (Sin (Mul [Num pi; lval]), Num eps);]
+                     ), vc3)
+                | (E e', doubleType) -> (F (Basic.Eq (lval, e')), vc3)
+                | (E e', _) -> failwith "Set: only support an assignment to int or double type."
+                | (F _, _) -> failwith "should be an expression"
               end
           end
         | (Var vi, Field _) ->
