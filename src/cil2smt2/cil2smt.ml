@@ -29,6 +29,14 @@ type expr =
   | E of Basic.exp
   | F of Basic.formula
 
+let extract_E_exn =
+  function E e -> e
+         | F f -> failwith "Expression expected, but has formula"
+
+let extract_F_exn =
+  function E e -> failwith "Formula expected, but has expression"
+         | F f -> f
+
 let debug : bool Global.t = Global.empty "debug"
 let ignore_func_names = ["main"; "get_low_nbits"]
 let pi = 3.14159265358979323846
@@ -178,7 +186,7 @@ and translate_stmtkinds skinds (vc : Vcmap.t) : expr list * Vcmap.t =
       begin
       match (all is_formula be'), (all is_formula (e1' @ e2')) with
       | true, true ->
-         let F be = List.hd be' in
+         let be = extract_F_exn (List.hd be') in
          let es1 = List.map extract_formula e1' in
          let es2 = List.map extract_formula e2' in
 
@@ -215,7 +223,7 @@ and translate_switch stmt vc : expr list * Vcmap.t =
   match stmt with
   | Switch (e, b, stmts, _) ->
     let exps, vc1 = translate_exps [e] vc in
-    let E e' = List.hd exps in
+    let e' = extract_E_exn (List.hd exps) in
 
     (* for each case statement, generate a formula and get new
        variable counting map *)
@@ -228,7 +236,7 @@ and translate_switch stmt vc : expr list * Vcmap.t =
                (fun e ->
                   (* abandon the vc here assume it's constant expression *)
                   let exps', _ = translate_exps [e] vc1 in
-                  let E e' = List.hd exps' in
+                  let e' = extract_E_exn (List.hd exps') in
                   e'
                )
                labels
@@ -313,8 +321,8 @@ and translate_exps exps (vc : Vcmap.t) : expr list * Vcmap.t =
              begin
               match all is_exp [e1'; e2'] with
               | true ->
-                let E e1' = e1' in
-                let E e2' = e2' in
+                let e1' = extract_E_exn e1' in
+                let e2' = extract_E_exn e2' in
                 E (Basic.Add [e1'; e2']), vc3
               | false -> failwith "not all expression"
             end
@@ -324,8 +332,8 @@ and translate_exps exps (vc : Vcmap.t) : expr list * Vcmap.t =
             begin
               match all is_exp [e1'; e2'] with
               | true ->
-                let E e1' = e1' in
-                let E e2' = e2' in
+                let e1' = extract_E_exn e1' in
+                let e2' = extract_E_exn e2' in
                 E (Basic.Sub [e1'; e2']), vc3
               | false -> failwith "not all expression"
             end
@@ -335,8 +343,8 @@ and translate_exps exps (vc : Vcmap.t) : expr list * Vcmap.t =
             begin
               match all is_exp [e1'; e2'] with
               | true ->
-                let E e1' = e1' in
-                let E e2' = e2' in
+                let e1' = extract_E_exn e1' in
+                let e2' = extract_E_exn e2' in
                 E (Basic.Mul [e1'; e2']), vc3
               | false -> failwith "not all expression"
             end
@@ -344,8 +352,8 @@ and translate_exps exps (vc : Vcmap.t) : expr list * Vcmap.t =
             begin
               match all is_exp [e1'; e2'] with
               | true ->
-                let E e1' = e1' in
-                let E e2' = e2' in
+                let e1' = extract_E_exn e1' in
+                let e2' = extract_E_exn e2' in
                 E (Basic.Div (e1', e2')), vc3
               | false -> failwith "not all expression"
             end
@@ -356,8 +364,8 @@ and translate_exps exps (vc : Vcmap.t) : expr list * Vcmap.t =
             begin
               match all is_exp [e1'; e2'] with
               | true ->
-                let E f1 = e1' in
-                let E f2 = e2' in
+                let f1 = extract_E_exn e1' in
+                let f2 = extract_E_exn e2' in
                 F (Basic.Lt (f1, f2)), vc3
               | _ -> failwith "not all formula"
             end
@@ -365,8 +373,8 @@ and translate_exps exps (vc : Vcmap.t) : expr list * Vcmap.t =
             begin
               match all is_exp [e1'; e2'] with
               | true ->
-                let E f1 = e1' in
-                let E f2 = e2' in
+                let f1 = extract_E_exn e1' in
+                let f2 = extract_E_exn e2' in
                 F (Basic.Gt (f1, f2)), vc3
               | _ -> failwith "not all formula"
             end
@@ -374,8 +382,8 @@ and translate_exps exps (vc : Vcmap.t) : expr list * Vcmap.t =
             begin
               match all is_exp [e1'; e2'] with
               | true ->
-                let E f1 = e1' in
-                let E f2 = e2' in
+                let f1 = extract_E_exn e1' in
+                let f2 = extract_E_exn e2' in
                 F (Basic.Le (f1, f2)), vc3
               | _ -> failwith "not all formula"
             end
@@ -383,8 +391,8 @@ and translate_exps exps (vc : Vcmap.t) : expr list * Vcmap.t =
             begin
               match all is_exp [e1'; e2'] with
               | true ->
-                let E f1 = e1' in
-                let E f2 = e2' in
+                let f1 = extract_E_exn e1' in
+                let f2 = extract_E_exn e2' in
                 F (Basic.Ge (f1, f2)), vc3
               | _ -> failwith "not all formula"
             end
@@ -392,8 +400,8 @@ and translate_exps exps (vc : Vcmap.t) : expr list * Vcmap.t =
             begin
               match all is_exp [e1'; e2'] with
               | true ->
-                let E f1 = e1' in
-                let E f2 = e2' in
+                let f1 = extract_E_exn e1' in
+                let f2 = extract_E_exn e2' in
                 F (Basic.Eq (f1, f2)), vc3
               | _ -> failwith "not all formula"
             end
@@ -401,8 +409,8 @@ and translate_exps exps (vc : Vcmap.t) : expr list * Vcmap.t =
             begin
               match all is_exp [e1'; e2'] with
               | true ->
-                let E f1 = e1' in
-                let E f2 = e2' in
+                let f1 = extract_E_exn e1' in
+                let f2 = extract_E_exn e2' in
                 F (Basic.Eq (f1, f2)), vc3
               | _ -> failwith "not all formula"
             end
@@ -413,8 +421,8 @@ and translate_exps exps (vc : Vcmap.t) : expr list * Vcmap.t =
             begin
               match all is_formula [e1'; e2'] with
               | true ->
-                let F f1 = e1' in
-                let F f2 = e2' in
+                let f1 = extract_F_exn e1' in
+                let f2 = extract_F_exn e2' in
                 F (Basic.And [f1; f2]), vc3
               | _ -> failwith "not all formula"
             end
@@ -422,8 +430,8 @@ and translate_exps exps (vc : Vcmap.t) : expr list * Vcmap.t =
             begin
               match all is_formula [e1'; e2'] with
               | true ->
-                let F f1 = e1' in
-                let F f2 = e2' in
+                let f1 = extract_F_exn e1' in
+                let f2 = extract_F_exn e2' in
                 F (Basic.Or [f1; f2]), vc3
               | _ -> failwith "not all formula"
             end
@@ -498,7 +506,7 @@ and translate_instrs ins (vc : Vcmap.t) : expr list * Vcmap.t =
             | true ->
               let index_exp = extract_index_exp e in
               let exps, vc1 = translate_exps [index_exp] vc in
-              let E index_exp1 = List.hd exps in
+              let index_exp1 = extract_E_exn (List.hd exps) in
               let s = extract_index_term e in
               let vc2 = update s vc1 in
               let dest, vc3 = translate_lval lval vc2 in
@@ -506,7 +514,7 @@ and translate_instrs ins (vc : Vcmap.t) : expr list * Vcmap.t =
               let fmap =
                 Map.mapi
                   (fun index v ->
-                     let E e = v in
+                     let e = extract_E_exn v in
                      Basic.Imply (Basic.Eq (Basic.Num (float_of_int index), index_exp1),
                                   Basic.Eq (dest, e))
                   )
