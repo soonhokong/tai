@@ -5,8 +5,8 @@ open Smt2_cmd
 (* initialize global variables *)
 let _ = Global.set Cil2smt.debug false
 
-let lb = ref infinity
-let ub = ref ~-. infinity
+let lb = ref ~-. infinity
+let ub = ref infinity
 let c_file = ref ""
 let info_file = ref None
 let check_file filename =
