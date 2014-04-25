@@ -113,9 +113,6 @@ and translate_function f : expr list =
   | _ -> failwith "should be function"
 
 and translate_blocks blocks (vc : Vcmap.t): expr list * Vcmap.t =
-  let translate_block block vc =
-    translate_stmts block.bstmts vc
-  in
   List.fold_left
     (fun accu b ->
        let (bs, vc) = accu in
@@ -125,9 +122,6 @@ and translate_blocks blocks (vc : Vcmap.t): expr list * Vcmap.t =
     ([], vc) blocks
 
 and translate_stmts stmts (vc : Vcmap.t) : expr list * Vcmap.t =
-  let translate_stmt stmt (vc : Vcmap.t) : expr list * Vcmap.t =
-    translate_stmtkinds [stmt.skind] vc
-  in
   List.fold_left
     (fun accu s ->
        let (ss, vc) = accu in
