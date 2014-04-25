@@ -15,6 +15,11 @@ let debug = ref false
 let ignore_func_names = ["main"; "get_low_nbit"]
 let pi = 3.14159265358979323846
 let eps = 0.000001
+
+let handle_call (f' : lval) (arg_list : Cil.exp list) (vc : Vcmap.t)
+  : expr * Vcmap.t
+  = (F Basic.True, vc)
+
 let is_exp e =
   match e with
   | E _ -> true
@@ -450,7 +455,13 @@ and translate_instrs ins (vc : Vcmap.t) : expr list * Vcmap.t =
           F (Basic.True), vc1
         | _ -> failwith "todo _"
       end;
-    | Call _ -> failwith "not now call"
+    | Call (lv_opt, f, arg_list, l) ->
+      begin
+       match (lv_opt, f) with
+          (None, _) -> (F Basic.True, vc)
+        | (Some x, Lval f') -> handle_call f' arg_list vc
+        | _ -> failwith "not now call"
+      end
     | Asm _ -> failwith "not now asm"
   in
   List.fold_left
