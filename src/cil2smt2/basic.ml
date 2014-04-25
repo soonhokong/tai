@@ -568,7 +568,7 @@ open Batteries
                            out
                            xs
     | Num n ->
-      let str_n = Printf.sprintf "%f" n in
+      let str_n = Printf.sprintf "%.30f" n in
       let str_n' =
         if String.ends_with str_n "." then
           str_n ^ "0"
