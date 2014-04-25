@@ -505,9 +505,11 @@ and translate_const (c : Cil.constant) =
   | CReal (f, _, _) -> Basic.Num f
   | CEnum _ -> failwith "not now enum"
 
-let d = Arg.Set debug
-
-let spec = [("-d", d, "enable debugging")]
+let lb = ref infinity
+let ub = ref ~-. infinity
+let spec = [("-d", Arg.Set debug, "enable debugging");
+            ("-l", Arg.Float (fun n -> lb := n), "lower bound");
+            ("-u", Arg.Float (fun n -> ub := n), "upper bound");]
 
 let usage = "Usage: cil2smt.native [<options>] <.c>\n<options> are: "
 
