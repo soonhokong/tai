@@ -1,4 +1,4 @@
-cil2smt.native: basic.ml cil2smt.ml myocamlbuild.ml setup.ml setup.data smt2_cmd.ml
+cil2smt.native: basic.ml cil2smt.ml myocamlbuild.ml setup.ml setup.data smt2_cmd.ml info.ml
 	ocaml setup.ml -build
 
 myocamlbuild.ml setup.ml: _oasis
