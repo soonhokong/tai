@@ -117,7 +117,7 @@ class removeUnnecessaryCodeVisitor =
 
 let (arr_init_map :  ( (string, (int, expr) Map.t) Map.t) ref) = ref Map.empty
 
-let rec translation file_name=
+let rec translation file_name lb ub =
   let cil_file = Frontc.parse file_name () in
   visitCilFile (new removeUnnecessaryCodeVisitor) cil_file;
   if (Global.get_exn debug) then dumpFile defaultCilPrinter Pervasives.stdout "codegen" cil_file;
@@ -129,17 +129,26 @@ let rec translation file_name=
       )
       globals
   in
-  let exprs = List.flatten (List.map translate_function globals') in
+  let exprs = List.flatten (List.map (translate_function lb ub) globals') in
   match (all is_formula exprs) with
   | true ->
     Basic.make_and (List.map extract_formula exprs)
   | false -> failwith "not all are formula"
 
-and translate_function f : expr list =
+and translate_function lb ub f: expr list =
   match f with
   | GFun (fd, _) ->
     let f, vc = translate_blocks [fd.sbody] Vcmap.empty in
-    f
+    let formals = fd.sformals in
+    if List.length formals != 1 then
+      failwith "The number of function argument has to be 1."
+    else
+      let formal = List.at formals 0 in
+      let v = formal.vname in
+      let bounds_on_formal = make_bounded_constraint v lb ub in
+      begin
+        (F bounds_on_formal)::f
+      end
   | _ -> failwith "should be function"
 
 and translate_blocks blocks (vc : Vcmap.t): expr list * Vcmap.t =

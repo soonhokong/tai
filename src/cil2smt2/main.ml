@@ -30,7 +30,7 @@ let run () =
         Info.print IO.stdout entries;
       Some entries
     end in
-  let f = Cil2smt.translation !c_file in
+  let f = Cil2smt.translation !c_file !lb !ub in
   let vars = Set.to_list (collect_vars_in_formula f) in
   let var_decls = List.map (fun v -> DeclareFun v) vars in
   let logic_cmd = SetLogic QF_NRA in

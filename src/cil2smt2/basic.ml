@@ -836,3 +836,7 @@ open Batteries
        begin
          List.print ~first:"integral( " ~last:")" ~sep:" " String.print out [string_of_float time_0; time_t; str_xs; flow]
        end
+
+let make_bounded_constraint v lb ub =
+  make_and [Ge (Var v, Num lb);
+            Le (Var v, Num ub)];
