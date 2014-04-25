@@ -19,9 +19,11 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with dReal. If not, see <http://www.gnu.org/licenses/>.
 *)
-type t = {lineno:    int;
-            func_name: string;
-            args:      string list;
-            info:      string list}
+type t = {filename: string;
+          lineno:   int;
+          funcname: string;
+          args:     string list;
+          info:     string list;
+          ret:      string}
 val of_string : string -> t
 val print : 'a BatIO.output -> t -> unit

@@ -21,24 +21,32 @@ along with dReal. If not, see <http://www.gnu.org/licenses/>.
 *)
 open Batteries
 
-type t = {lineno:    int;
-            func_name: string;
-            args:      string list;
-            info:      string list}
+type t = {filename: string;
+          lineno:   int;
+          funcname: string;
+          args:     string list;
+          info:     string list;
+          ret:      string}
 
-let print out {lineno = lineno;
-               func_name = func_name;
+let print out {filename = filename;
+               lineno = lineno;
+               funcname = funcname;
                args = args;
-               info = info}
+               info = info;
+               ret = ret;}
   = begin
     String.print out "{";
-    Int.print out lineno;
+    String.print out filename;
     String.print out ":";
-    String.print out func_name;
+    Int.print out lineno;
+    String.print out " ";
+    String.print out funcname;
     String.print out "(";
     String.print out (String.join "," args);
-    String.print out ") = ";
+    String.print out ") |";
     String.print out (String.join "," info);
+    String.print out "| = ";
+    String.print out ret;
     String.print out "}";
   end
 
@@ -50,11 +58,15 @@ let split_and_trim ?by:(sep=" ") (s : string) : string list =
 let of_string (s : string) : t =
   let elems = String.nsplit s ~by:"|" in
   let lookup = List.at elems in
-  let lineno = Int.of_string (lookup 0) in
-  let fn     = lookup 1 in
-  let args   = split_and_trim (lookup 2) in
-  let info   = split_and_trim (lookup 3) in
-  {lineno = lineno;
-   func_name = fn;
+  let filename = lookup 0 in
+  let lineno = Int.of_string (lookup 1) in
+  let fn = lookup 2 in
+  let args = split_and_trim (lookup 3) in
+  let info = split_and_trim (lookup 4) in
+  let ret = lookup 5 in
+  {filename = filename;
+   lineno = lineno;
+   funcname = fn;
    args = args;
-   info = info;}
+   info = info;
+   ret = ret;}
