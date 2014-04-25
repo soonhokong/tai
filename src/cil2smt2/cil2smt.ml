@@ -66,19 +66,20 @@ let is_array_access e =
   | Lval (Var _, Index _) -> true
   | _ -> false
 
+let extract_cases labels =
+  List.map
+    (fun l ->
+       match l with
+       | Case (e, _) -> e
+       | _ -> failwith "not a case"
+    )
+    labels
+
 let all f bs =
   List.length (List.filter f bs) != 0
 
 let any f bs =
   not (all f bs)
-
-let gensym : unit -> string =
-  let i = ref Int64.zero in
-  fun () ->
-  begin
-    i := Int64.add !i Int64.one;
-    string_of_int (Int64.to_int !i)
-  end
 
 class removeUnnecessaryCodeVisitor =
   object(self)
@@ -91,11 +92,14 @@ class removeUnnecessaryCodeVisitor =
         DoChildren
      | If _ ->
         DoChildren
-     | Return _
+     | Switch _ ->
+       DoChildren
+     | Return _ ->
+       ChangeTo Cil.invalidStmt
+     | Break _ ->
+       DoChildren
      | Goto _
-     | Break _
      | Continue _
-     | Switch _
      | Loop _
      | TryFinally _
      | TryExcept _
@@ -190,7 +194,8 @@ and translate_stmtkinds skinds (vc : Vcmap.t) : expr list * Vcmap.t =
            )], vc3
       | _ -> failwith "should all be formula"
       end
-    | Switch _ -> failwith "not now switch"
+    | Switch (exp, block, stmts, _) ->
+      translate_switch sk vc
     | Loop _ -> failwith "not now loop"
     | Block b ->
        translate_blocks [b] vc
@@ -205,6 +210,64 @@ and translate_stmtkinds skinds (vc : Vcmap.t) : expr list * Vcmap.t =
        (prev @ ss, vc1)
     )
     ([], vc) skinds
+
+and translate_switch stmt vc : expr list * Vcmap.t =
+  match stmt with
+  | Switch (e, b, stmts, _) ->
+    let exps, vc1 = translate_exps [e] vc in
+    let E e' = List.hd exps in
+
+    (* for each case statement, generate a formula and get new
+       variable counting map *)
+    let expr_vc_list =
+      List.map
+        (fun stmt ->
+           let labels : Cil.exp list  = extract_cases stmt.labels in
+           let processed_labels =
+             List.map
+               (fun e ->
+                  (* abandon the vc here assume it's constant expression *)
+                  let exps', _ = translate_exps [e] vc1 in
+                  let E e' = List.hd exps' in
+                  e'
+               )
+               labels
+           in
+
+           (* formula for case labels *)
+           let pred =
+             Basic.make_or
+               (List.map
+                  (fun case_exp ->
+                     Basic.Eq (case_exp, e')
+                  )
+                  processed_labels
+               )
+           in
+           let conclude, vc2 = translate_stmtkinds [stmt.skind] vc1 in
+           match all is_formula conclude with
+           | true ->
+             let conclude' = Basic.make_and (List.map extract_formula conclude) in
+             Basic.Imply (pred, conclude'), vc2
+           | false -> failwith "no all are forumula"
+        )
+        stmts
+    in
+    let vcs = List.map snd expr_vc_list in
+    let full_vc = List.fold_left join vc1 vcs in
+    let full_formula = Basic.make_and (
+        List.map
+          (fun expr_vc ->
+             let (f, vc) = expr_vc in
+             let diff_vc = diff vc full_vc in
+             let copy_formua = gen_copy_formula diff_vc in
+             Basic.make_and [f; copy_formua]
+          )
+          expr_vc_list
+      )
+    in
+    [F full_formula], full_vc
+  | _ -> failwith "not a switch"
 
 and translate_exps exps (vc : Vcmap.t) : expr list * Vcmap.t =
   let translate_exp (e : Cil.exp) (vc : Vcmap.t) : expr * Vcmap.t =
@@ -409,6 +472,16 @@ and extract_index_term e =
 
 and print_exp exp =
   let doc = Cil.printExp Cil.defaultCilPrinter () exp in
+  Pretty.fprint Pervasives.stdout ~width:20 doc;
+  print_newline();
+
+and print_stmt stmt =
+  let doc = Cil.printStmt Cil.defaultCilPrinter () stmt in
+  Pretty.fprint Pervasives.stdout ~width:20 doc;
+  print_newline();
+
+and print_block block =
+  let doc = Cil.printBlock Cil.defaultCilPrinter () block in
   Pretty.fprint Pervasives.stdout ~width:20 doc;
   print_newline();
 
