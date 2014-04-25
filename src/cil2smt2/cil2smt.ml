@@ -29,8 +29,7 @@ type expr =
   | E of Basic.exp
   | F of Basic.formula
 
-(* global variables *)
-let debug = ref false
+let debug : bool Global.t = Global.empty "debug"
 let ignore_func_names = ["main"; "get_low_nbit"]
 let pi = 3.14159265358979323846
 let eps = 0.000001
@@ -109,7 +108,7 @@ let (arr_init_map :  ( (string, (int, expr) Map.t) Map.t) ref) = ref Map.empty
 let rec translation file_name=
   let cil_file = Frontc.parse file_name () in
   visitCilFile (new removeUnnecessaryCodeVisitor) cil_file;
-  if !debug then dumpFile defaultCilPrinter Pervasives.stdout "codegen" cil_file;
+  if (Global.get_exn debug) then dumpFile defaultCilPrinter Pervasives.stdout "codegen" cil_file;
   let globals = List.filter is_gfun cil_file.globals in
   let globals' =
     List.filter
@@ -523,31 +522,3 @@ and translate_const (c : Cil.constant) =
   | CChr _ -> failwith "not now char"
   | CReal (f, _, _) -> Basic.Num f
   | CEnum _ -> failwith "not now enum"
-
-let lb = ref infinity
-let ub = ref ~-. infinity
-let spec = [("-d", Arg.Set debug, "enable debugging");
-            ("-l", Arg.Float (fun n -> lb := n), "lower bound");
-            ("-u", Arg.Float (fun n -> ub := n), "upper bound");]
-
-let usage = "Usage: cil2smt.native [<options>] <.c>\n<options> are: "
-
-let run () =
-  let src = ref "" in
-  let _ = Arg.parse spec
-      (fun x -> if Sys.file_exists x then src := x
-        else raise (Arg.Bad (x^": No such file"))) usage in
-  let f = translation !src in
-  let vars = Set.to_list (collect_vars_in_formula f) in
-  let var_decls = List.map (fun v -> DeclareFun v) vars in
-  let logic_cmd = SetLogic QF_NRA in
-  let out = IO.stdout in
-  Smt2.print out
-    (List.flatten
-       [[logic_cmd];
-        var_decls;
-        [Assert f;
-         CheckSAT;
-         Exit]])
-
-let _ = run ()
