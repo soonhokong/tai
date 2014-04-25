@@ -92,7 +92,17 @@ let rec translation file_name=
   visitCilFile (new removeUnnecessaryCodeVisitor) cil_file;
   if !debug then dumpFile defaultCilPrinter Pervasives.stdout "codegen" cil_file;
   let globals = List.filter is_gfun cil_file.globals in
-  let exprs = List.flatten (List.map translate_function globals) in
+  let globals' =
+    List.filter
+      (function GFun (fndec, l) -> not (List.mem fndec.svar.vname ignore_func_names)
+              | _ -> failwith "GFun only"
+      )
+      globals
+  in
+  let _ = Format.printf "globals len = %d, globals' len = %d\n"
+      (List.length globals)
+      (List.length globals') in
+  let exprs = List.flatten (List.map translate_function globals') in
   match (all is_formula exprs) with
   | true ->
     Basic.make_and (List.map extract_formula exprs)
