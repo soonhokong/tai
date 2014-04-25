@@ -1,3 +1,25 @@
+(*
+Author: Soonho Kong   <soonhok@cs.cmu.edu>
+        Wei Chen      <weichen1@andrew.cmu.edu>
+        Sicun Gao     <sicung@cs.cmu.edu>
+        Edmund Clarke <emc@cs.cmu.edu>
+
+dReal -- Copyright (C) 2013 - 2014, Soonho Kong, Wei Chen, Sicun Gao, and Edmund Clarke
+
+dReal is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+dReal is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with dReal. If not, see <http://www.gnu.org/licenses/>.
+*)
+
 open Batteries
 open Basic
 
@@ -11,7 +33,6 @@ type t = | SetLogic of logic
          | SetInfo of string * string
          | DeclareFun of string
          | DeclareConst of string
-
          (** ode group X LHS X RHS **)
          (** [x1_k_t ... xn_k_t] = (integral 0.0 time_k [x1_k_0 ... xn_k_0] flow_i) *)
          | DefineODE of string * (string * exp) list
