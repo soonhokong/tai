@@ -438,12 +438,12 @@ and translate_instrs ins (vc : Vcmap.t) : expr list * Vcmap.t =
               let lval, vc3 = translate_lval lval vc2 in
               begin
                 match (e', ty) with
-                | (E e', intType) ->
+                | (E e', TInt (IInt, _)) ->
                   (F (Basic.make_and [Basic.Eq (lval, e');
                                       Basic.Ge (Sin (Mul [Num pi; lval]), Num (~-. eps));
                                       Basic.Le (Sin (Mul [Num pi; lval]), Num eps);]
                      ), vc3)
-                | (E e', doubleType) -> (F (Basic.Eq (lval, e')), vc3)
+                | (E e', TFloat (FDouble, _)) -> (F (Basic.Eq (lval, e')), vc3)
                 | (E e', _) -> failwith "Set: only support an assignment to int or double type."
                 | (F _, _) -> failwith "should be an expression"
               end
