@@ -1,5 +1,5 @@
 OASISFormat: 0.4
-Name:        trans
+Name:        cil2smt2
 Version:     0.0.1
 Synopsis:    translator
 Authors:
