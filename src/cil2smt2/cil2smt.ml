@@ -21,10 +21,8 @@ along with dReal. If not, see <http://www.gnu.org/licenses/>.
 *)
 open Cil
 open Batteries
-open IO
 open Smt2_cmd
 open Basic
-open Int64
 open Vcmap
 
 type expr =
@@ -76,10 +74,10 @@ let any f bs =
   not (all f bs)
 
 let gensym : unit -> string =
-  let i = ref zero in
+  let i = ref Int64.zero in
   fun () ->
   begin
-    i := add !i one;
+    i := Int64.add !i Int64.one;
     string_of_int (Int64.to_int !i)
   end
 
@@ -394,7 +392,7 @@ and extract_index e =
   | Const c ->
     begin
       match c with
-      | CInt64 (i, _, _) -> to_int i
+      | CInt64 (i, _, _) -> Int64.to_int i
       | _ -> failwith "not support number"
     end
   | _ -> failwith "not support non-const index"
@@ -519,7 +517,7 @@ and extract_var_name l  =
 
 and translate_const (c : Cil.constant) =
   match c with
-  | CInt64 (i, _, _) -> Basic.Num (to_float i)
+  | CInt64 (i, _, _) -> Basic.Num (Int64.to_float i)
   | CStr _ -> failwith "not now string"
   | CWStr _ -> failwith "not now CWStr"
   | CChr _ -> failwith "not now char"
