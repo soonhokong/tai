@@ -1,4 +1,3 @@
-Concolic
-========
+TAI: Test and Infer
+===================
 
-Concolic testing + dReal
