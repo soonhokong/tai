@@ -99,9 +99,6 @@ let rec translation file_name=
       )
       globals
   in
-  let _ = Format.printf "globals len = %d, globals' len = %d\n"
-      (List.length globals)
-      (List.length globals') in
   let exprs = List.flatten (List.map translate_function globals') in
   match (all is_formula exprs) with
   | true ->
