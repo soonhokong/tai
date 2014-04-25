@@ -33,6 +33,11 @@ let is_gfun e =
   | GFun _ -> true
   | _ -> false
 
+let is_array_access e =
+  match e with
+  | Lval (Var _, Index _) -> true
+  | _ -> false
+
 let all f bs =
   List.length (List.filter f bs) != 0
 
@@ -70,7 +75,10 @@ class removeUnnecessaryCodeVisitor =
         ChangeTo Cil.invalidStmt
   end
 
+(* global variables *)
 let debug = ref false
+
+let (arr_init_map :  ( (string, (int, expr) Map.t) Map.t) ref) = ref Map.empty
 
 let rec translation file_name=
   let cil_file = Frontc.parse file_name () in
@@ -357,20 +365,94 @@ and translate_exps exps (vc : Vcmap.t) : expr list * Vcmap.t =
     ([], vc) exps
 
 
+and extract_index e =
+  match e with
+  | Const c ->
+    begin
+      match c with
+      | CInt64 (i, _, _) -> to_int i
+      | _ -> failwith "not support number"
+    end
+  | _ -> failwith "not support non-const index"
+
+and extract_index_exp e =
+  match e with
+  | Lval (_, Index (i, _)) -> i
+  | _ -> failwith "not a variable"
+
+and extract_index_term e =
+  match e with
+  | Lval lval ->
+    extract_var_name lval
+  | _ -> failwith "not a lval"
+
+and print_exp exp =
+  let doc = Cil.printExp Cil.defaultCilPrinter () exp in
+  Pretty.fprint Pervasives.stdout ~width:20 doc;
+  print_newline();
+
 and translate_instrs ins (vc : Vcmap.t) : expr list * Vcmap.t =
   let translate_inst ins (vc : Vcmap.t) : expr * Vcmap.t =
     match ins with
     | Set (lval, e, _) ->
-      let exps, vc1 = translate_exps [e] vc in
-      let e' = List.hd exps in
-      let s = extract_var_name lval in
-      let vc2 = update s vc1 in
-      let lval, vc3 = translate_lval lval vc2 in
       begin
-        match e' with
-        | E e' -> F (Basic.Eq (lval, e')), vc3
-        | _ -> failwith "should be an expression"
-      end
+        match lval with
+        | (Var vi, NoOffset) ->
+          (* normal variable*)
+          begin
+            match is_array_access e with
+            | true ->
+              let index_exp = extract_index_exp e in
+              let exps, vc1 = translate_exps [index_exp] vc in
+              let E index_exp1 = List.hd exps in
+              let s = extract_index_term e in
+              let vc2 = update s vc1 in
+              let dest, vc3 = translate_lval lval vc2 in
+              let imap = Map.find s !arr_init_map in
+              let fmap =
+                Map.mapi
+                  (fun index v ->
+                     let E e = v in
+                     Basic.Imply (Basic.Eq (Basic.Num (float_of_int index), index_exp1),
+                                  Basic.Eq (dest, e))
+                  )
+                  imap
+              in
+              let values = List.of_enum (Map.values fmap) in
+              F (Basic.make_and values), vc3
+            | false ->
+              let exps, vc1 = translate_exps [e] vc in
+              let e' = List.hd exps in
+              let s = extract_var_name lval in
+              let vc2 = update s vc1 in
+              let lval, vc3 = translate_lval lval vc2 in
+              begin
+                match e' with
+                | E e' -> F (Basic.Eq (lval, e')), vc3
+                | _ -> failwith "should be an expression"
+              end
+          end
+        | (Var vi, Field _) ->
+          (* ignore *)
+          failwith "todo"
+        | (Var vi, Index (exp, _) ) ->
+          (* array assignment *)
+          let index = extract_index exp in
+          let var = extract_var_name lval in
+          let imap =
+            begin
+              match Map.mem var !arr_init_map with
+              | true -> Map.find var !arr_init_map
+              | false -> Map.empty
+            end
+          in
+          let exps, vc1 = translate_exps [e] vc in
+          let e' = List.hd exps in
+          let imap' = Map.add index e' imap in
+          arr_init_map := Map.add var imap' !arr_init_map;
+          F (Basic.True), vc1
+        | _ -> failwith "todo"
+      end;
     | Call _ -> failwith "not now call"
     | Asm _ -> failwith "not now asm"
   in
@@ -408,7 +490,10 @@ and translate_const (c : Cil.constant) =
   | CReal (f, _, _) -> Basic.Num f
   | CEnum _ -> failwith "not now enum"
 
-let spec = []
+let d = Arg.Set debug
+
+let spec = [("-d", d, "enable debugging")]
+
 let usage = "Usage: cil2smt.native [<options>] <.c>\n<options> are: "
 
 let run () =
