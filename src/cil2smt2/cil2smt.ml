@@ -10,6 +10,11 @@ type expr =
   | E of Basic.exp
   | F of Basic.formula
 
+(* global variables *)
+let debug = ref false
+let ignore_func_names = ["main"; "get_low_nbit"]
+let pi = 3.14159265358979323846
+let eps = 0.000001
 let is_exp e =
   match e with
   | E _ -> true
@@ -75,20 +80,12 @@ class removeUnnecessaryCodeVisitor =
         ChangeTo Cil.invalidStmt
   end
 
-(* global variables *)
-let debug = ref false
-
 let (arr_init_map :  ( (string, (int, expr) Map.t) Map.t) ref) = ref Map.empty
 
 let rec translation file_name=
   let cil_file = Frontc.parse file_name () in
   visitCilFile (new removeUnnecessaryCodeVisitor) cil_file;
-  begin
-    match !debug with
-    | true ->
-      dumpFile defaultCilPrinter Pervasives.stdout "codegen" cil_file;
-    | _ -> ();
-  end;
+  if !debug then dumpFile defaultCilPrinter Pervasives.stdout "codegen" cil_file;
   let globals = List.filter is_gfun cil_file.globals in
   let exprs = List.flatten (List.map translate_function globals) in
   match (all is_formula exprs) with
@@ -209,7 +206,7 @@ and translate_exps exps (vc : Vcmap.t) : expr list * Vcmap.t =
             | E e'' -> E (Basic.Neg e''), vc1
             | _ -> failwith "should be an expression"
           end
-        | BNot -> failwith "todo"
+        | BNot -> failwith "todo BNot"
         | LNot ->
           begin
             match e' with
@@ -434,7 +431,7 @@ and translate_instrs ins (vc : Vcmap.t) : expr list * Vcmap.t =
           end
         | (Var vi, Field _) ->
           (* ignore *)
-          failwith "todo"
+          failwith "todo Var + Field"
         | (Var vi, Index (exp, _) ) ->
           (* array assignment *)
           let index = extract_index exp in
@@ -451,7 +448,7 @@ and translate_instrs ins (vc : Vcmap.t) : expr list * Vcmap.t =
           let imap' = Map.add index e' imap in
           arr_init_map := Map.add var imap' !arr_init_map;
           F (Basic.True), vc1
-        | _ -> failwith "todo"
+        | _ -> failwith "todo _"
       end;
     | Call _ -> failwith "not now call"
     | Asm _ -> failwith "not now asm"
@@ -482,8 +479,7 @@ and extract_var_name l  =
 
 and translate_const (c : Cil.constant) =
   match c with
-  | CInt64 (i, _, _) ->
-    Basic.Num (to_float i)
+  | CInt64 (i, _, _) -> Basic.Num (to_float i)
   | CStr _ -> failwith "not now string"
   | CWStr _ -> failwith "not now CWStr"
   | CChr _ -> failwith "not now char"
