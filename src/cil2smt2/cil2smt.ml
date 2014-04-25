@@ -30,7 +30,7 @@ type expr =
   | F of Basic.formula
 
 let debug : bool Global.t = Global.empty "debug"
-let ignore_func_names = ["main"; "get_low_nbit"]
+let ignore_func_names = ["main"; "get_low_nbits"]
 let pi = 3.14159265358979323846
 let eps = 0.000001
 
