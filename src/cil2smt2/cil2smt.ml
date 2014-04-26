@@ -38,13 +38,104 @@ let extract_F_exn =
          | F f -> f
 
 let debug : bool Global.t = Global.empty "debug"
+let check_debug () = Global.get_exn debug
+(* let _ = Errormsg.colorFlag := true *)
+(* let _ = Errormsg.verboseFlag := true *)
+
 let ignore_func_names = ["main"; "get_low_nbits"]
-let pi = 3.14159265358979323846
 let eps = 0.000001
 
-let handle_call (f' : lval) (arg_list : Cil.exp list) (vc : Vcmap.t)
+let handle_call (info_entries : Info.t list) (x : lval) ((flhost, foffset) : lval) (arg_list : Cil.exp list) (vc : Vcmap.t) (loc : Cil.location)
   : expr * Vcmap.t
-  = (F Basic.True, vc)
+  = match (flhost, foffset) with
+    (Var fvinfo, NoOffset) ->
+    begin
+      let open Info in
+      let fname = fvinfo.vname in
+      try
+        let info_entry = List.find
+            (fun i -> i.funcname = fname &&
+                      i.lineno   = loc.line &&
+                      i.filename = loc.file)
+            info_entries
+        in
+        (* String.println IO.stdout ("We do handle " ^ fname ^ " function..."); *)
+        match info_entry.funcname with
+          "GET_LOW_NBITS" ->
+          let args = info_entry.args in
+          let info = info_entry.info in
+          let ret  = info_entry.ret in
+          let y_name = List.at args 0 in (* u *)
+          let n = Int.of_string (List.at args 1) in (* 32 *)
+          let y_val = Float.of_string (List.at info 0) in (* 52776558133248.5 *)
+          let y_sign = (List.at info 1) = "+" in
+          let significant_high = Int64.of_string ("0x" ^ (List.at info 2)) in
+          let significant_low  = Int64.of_string ("0x" ^ (List.at info 3)) in
+          let exponent         = Int.of_string (List.at info 4) in
+          let xh0 = if n <= 32 then
+              Int64.add
+                (Int64.shift_right_logical significant_low n)
+                (Int64.shift_left significant_high (32 - n))
+            else
+              Int64.shift_right_logical significant_low (32 - n)
+          in
+          let tmp1 = Float.pow 2.0 (Float.of_int exponent) in (* 2 ^ e0 *)
+          let tmp2 = (Int64.to_float xh0) *.
+                     (Float.pow 2.0 (Float.of_int (-52 + n + exponent))) in (* x_h * 2 ^ (-52 + n + e) *)
+          let tmp3 = tmp1 +. tmp2 in (* 2^e0 + x_h * 2 ^ (-52 + n + e) *)
+          let tmp4 = Float.pow 2.0 (Float.of_int (-52 + exponent)) in (* 2 ^ (-52 + e0) *)
+          let xl = match x with
+            | (Var xvinfo, NoOffset) ->
+              let xname = xvinfo.vname in
+              let (subscript, vc') = Vcmap.lookup xname vc in
+              (xname ^ (String.of_int subscript))
+            | _ -> failwith "x must be Var + NoOffset"
+          in
+          (* f1 = (tmp3 + xl * tmp4 <= y) *)
+          let f1 = Le (Add [Num tmp3; Mul [Var xl; Num tmp4]], Var (y_name ^ "0")) in
+          (* let f1 = Eq ( *)
+          (*     Add [Log (Var xl); *)
+          (*          Mul [Num (float_of_int (-52 + exponent + n)) ; *)
+          (*               Num (Float.log 2.0)]], *)
+          (*     Log (Sub [Var y_name; Num tmp3])) in *)
+          (* f2 = (y <= (tmp3 + (xl + 1) * tmp4 *)
+          let f2 = Le (Var (y_name ^ "0"), Add [Num tmp3; Mul [Add [Var xl; Num 1.0]; Num tmp4]]) in
+          (* let f2 = True in *)
+          let f3 =
+            Basic.make_and [
+              Basic.Le (Num 0.0, Var xl);
+              Basic.Ge (Sin (Mul [Num Float.pi; Var xl]), Num (~-. eps));
+              Basic.Le (Sin (Mul [Num Float.pi; Var xl]), Num eps);]
+          in
+          begin
+            (* String.println IO.stdout ("tmp1            = " ^ Float.to_string tmp1); *)
+            (* String.println IO.stdout ("tmp2            = " ^ Float.to_string tmp2); *)
+            (* String.println IO.stdout ("tmp3            = " ^ Float.to_string tmp3); *)
+            (* String.println IO.stdout ("tmp4            = " ^ Float.to_string tmp4); *)
+            (* String.println IO.stdout ("y_val            = " ^ Float.to_string y_val); *)
+            (* String.println IO.stdout ("n                = " ^ Int.to_string n); *)
+            (* String.println IO.stdout ("xl                = " ^ xl); *)
+            (* String.print IO.stdout ("significant_high = "); *)
+            (* Int64.print_hex IO.stdout significant_high; *)
+            (* String.println IO.stdout ""; *)
+            (* String.print IO.stdout ("significant_low = "); *)
+            (* Int64.print_hex IO.stdout significant_low; *)
+            (* String.println IO.stdout ""; *)
+            (* String.print IO.stdout ("xh0 = "); *)
+            (* Int64.print_hex IO.stdout xh0; *)
+            (* String.println IO.stdout ""; *)
+            (* String.println IO.stdout ("exp              = " ^ Int.to_string exponent); *)
+            (F (make_and [f1; f2; f3]), vc)
+          end
+        | _ -> (F Basic.True, vc)
+      with Not_found ->
+        begin
+          (* String.println IO.stdout ("We don't handle " ^ fname ^ " function..."); *)
+          (F Basic.True, vc)
+        end
+    end
+  | (Var vinfo, _) -> failwith "handle_call only support (Var _, NoOffset) at this time"
+  | (Mem _, _) -> failwith "handle_call only support (Var _, NoOffset) at this time"
 
 let is_exp e =
   match e with
@@ -117,7 +208,7 @@ class removeUnnecessaryCodeVisitor =
 
 let (arr_init_map :  ( (string, (int, expr) Map.t) Map.t) ref) = ref Map.empty
 
-let rec translation file_name lb ub =
+let rec translation file_name lb ub info_entries =
   let cil_file = Frontc.parse file_name () in
   visitCilFile (new removeUnnecessaryCodeVisitor) cil_file;
   if (Global.get_exn debug) then dumpFile defaultCilPrinter Pervasives.stdout "codegen" cil_file;
@@ -129,42 +220,42 @@ let rec translation file_name lb ub =
       )
       globals
   in
-  let exprs = List.flatten (List.map (translate_function lb ub) globals') in
+  let exprs = List.flatten (List.map (translate_function lb ub info_entries) globals') in
   match (all is_formula exprs) with
   | true ->
     Basic.make_and (List.map extract_formula exprs)
   | false -> failwith "not all are formula"
 
-and translate_function lb ub f: expr list =
+and translate_function lb ub info_entries f: expr list =
   match f with
   | GFun (fd, _) ->
-    let f, vc = translate_blocks [fd.sbody] Vcmap.empty in
+    let f, vc = translate_blocks info_entries [fd.sbody] Vcmap.empty in
     let formals = fd.sformals in
     if List.length formals != 1 then
       failwith "The number of function argument has to be 1."
     else
       let formal = List.at formals 0 in
       let v = formal.vname in
-      let bounds_on_formal = make_bounded_constraint v lb ub in
+      let bounds_on_formal = make_bounded_constraint (v ^ "0") lb ub in
       begin
         (F bounds_on_formal)::f
       end
   | _ -> failwith "should be function"
 
-and translate_blocks blocks (vc : Vcmap.t): expr list * Vcmap.t =
+and translate_blocks info_entries blocks (vc : Vcmap.t): expr list * Vcmap.t =
   List.fold_left
     (fun accu b ->
        let (bs, vc) = accu in
-       let stmts1, vc1 = translate_stmts b.bstmts vc in
+       let stmts1, vc1 = translate_stmts info_entries b.bstmts vc in
        (bs @ stmts1, vc1)
     )
     ([], vc) blocks
 
-and translate_stmts stmts (vc : Vcmap.t) : expr list * Vcmap.t =
+and translate_stmts info_entries stmts (vc : Vcmap.t) : expr list * Vcmap.t =
   List.fold_left
     (fun accu s ->
        let (ss, vc) = accu in
-       let (ss1, vc1) = translate_stmtkinds [s.skind] vc in
+       let (ss1, vc1) = translate_stmtkinds info_entries [s.skind] vc in
        (ss @ ss1, vc1)
     )
     ([], vc) stmts
@@ -179,19 +270,19 @@ and gen_copy_formula diff_list =
        )
        diff_list)
 
-and translate_stmtkinds skinds (vc : Vcmap.t) : expr list * Vcmap.t =
+and translate_stmtkinds info_entries skinds (vc : Vcmap.t) : expr list * Vcmap.t =
   let translate_stmtkind sk vc : expr list * Vcmap.t =
     match sk with
     | Instr ins ->
-      translate_instrs ins vc
+      translate_instrs info_entries ins vc
     | Return _ -> failwith "not now return"
     | Goto _ -> failwith "not now goto"
     | Break _ -> failwith "not now break"
     | Continue _ -> failwith "not now continue"
     | If (be, e1, e2, _)->
       let be', vc0 = translate_exps [be] vc in
-      let e1', vc1 = translate_blocks [e1] vc0 in
-      let e2', vc2 = translate_blocks [e2] vc0 in
+      let e1', vc1 = translate_blocks info_entries [e1] vc0 in
+      let e2', vc2 = translate_blocks info_entries [e2] vc0 in
       begin
       match (all is_formula be'), (all is_formula (e1' @ e2')) with
       | true, true ->
@@ -212,10 +303,10 @@ and translate_stmtkinds skinds (vc : Vcmap.t) : expr list * Vcmap.t =
       | _ -> failwith "should all be formula"
       end
     | Switch (exp, block, stmts, _) ->
-      translate_switch sk vc
+      translate_switch info_entries sk vc
     | Loop _ -> failwith "not now loop"
     | Block b ->
-       translate_blocks [b] vc
+       translate_blocks info_entries [b] vc
     | TryFinally _ -> failwith "not now try"
     | TryExcept _ -> failwith "not now try"
     | ComputedGoto _ -> failwith "not now comput goto"
@@ -228,7 +319,7 @@ and translate_stmtkinds skinds (vc : Vcmap.t) : expr list * Vcmap.t =
     )
     ([], vc) skinds
 
-and translate_switch stmt vc : expr list * Vcmap.t =
+and translate_switch info_entries stmt vc : expr list * Vcmap.t =
   match stmt with
   | Switch (e, b, stmts, _) ->
     let exps, vc1 = translate_exps [e] vc in
@@ -261,7 +352,7 @@ and translate_switch stmt vc : expr list * Vcmap.t =
                   processed_labels
                )
            in
-           let conclude, vc2 = translate_stmtkinds [stmt.skind] vc1 in
+           let conclude, vc2 = translate_stmtkinds info_entries [stmt.skind] vc1 in
            match all is_formula conclude with
            | true ->
              let conclude' = Basic.make_and (List.map extract_formula conclude) in
@@ -502,7 +593,7 @@ and print_block block =
   Pretty.fprint Pervasives.stdout ~width:20 doc;
   print_newline();
 
-and translate_instrs ins (vc : Vcmap.t) : expr list * Vcmap.t =
+and translate_instrs info_entries ins (vc : Vcmap.t) : expr list * Vcmap.t =
   let translate_inst ins (vc : Vcmap.t) : expr * Vcmap.t =
     match ins with
     | Set (lval, e, _) ->
@@ -542,8 +633,8 @@ and translate_instrs ins (vc : Vcmap.t) : expr list * Vcmap.t =
                 match (e', ty) with
                 | (E e', TInt (IInt, _)) ->
                   (F (Basic.make_and [Basic.Eq (lval, e');
-                                      Basic.Ge (Sin (Mul [Num pi; lval]), Num (~-. eps));
-                                      Basic.Le (Sin (Mul [Num pi; lval]), Num eps);]
+                                      Basic.Ge (Sin (Mul [Num Float.pi; lval]), Num (~-. eps));
+                                      Basic.Le (Sin (Mul [Num Float.pi; lval]), Num eps);]
                      ), vc3)
                 | (E e', TFloat (FDouble, _)) -> (F (Basic.Eq (lval, e')), vc3)
                 | (E e', _) -> failwith "Set: only support an assignment to int or double type."
@@ -577,7 +668,7 @@ and translate_instrs ins (vc : Vcmap.t) : expr list * Vcmap.t =
       begin
        match (lv_opt, f) with
           (None, _) -> (F Basic.True, vc)
-        | (Some x, Lval f') -> handle_call f' arg_list vc
+        | (Some x, Lval f') -> handle_call info_entries x f' arg_list vc l
         | _ -> failwith "not now call"
       end
     | Asm _ -> failwith "not now asm"
