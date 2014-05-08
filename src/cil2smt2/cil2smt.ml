@@ -615,8 +615,11 @@ and translate_instrs info_entries ins (vc : Vcmap.t) : expr list * Vcmap.t =
                 Map.mapi
                   (fun index v ->
                      let e = extract_E_exn v in
-                     Basic.Imply (Basic.Eq (Basic.Num (float_of_int index), index_exp1),
-                                  Basic.Eq (dest, e))
+                     let open Basic in
+                     let eps = 0.0001 in
+                     Imply (And [Ge (Num ((float_of_int index) -. eps), index_exp1);
+                                 Le (index_exp1, (Num ((float_of_int index) +. eps)))],
+                            Eq (dest, e))
                   )
                   imap
               in

@@ -586,11 +586,12 @@ open Batteries
                            xs
     | Num n ->
       let str_n = Printf.sprintf "%.30f" n in
-      let str_n' =
-        if String.ends_with str_n "." then
-          str_n ^ "0"
+      let str_n' = Str.global_replace (Str.regexp "0+$") "0" str_n in
+      let str_n'' =
+        if String.ends_with str_n' "." then
+          str_n' ^ "0"
         else
-          str_n
+          str_n'
       in
       String.print out str_n'
     | Neg e' -> print_exps "-" [Num 0.0; e']

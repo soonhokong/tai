@@ -13,10 +13,10 @@ int get_low_nbits(double x, unsigned n, char * s, char * filename, unsigned line
     if (n < 32) {
         ret = ret & ((1 << n) - 1);
     }
-    printf("%s|%d|", filename, lineno);
-    printf("GET_LOW_NBITS|%s %d|", s, n);
-    printf("%.30g %s %08x %08x %d|",
+    fprintf(stderr, "%s|%d|", filename, lineno);
+    fprintf(stderr, "GET_LOW_NBITS|%s %d|", s, n);
+    fprintf(stderr, "%.30g %s %08x %08x %d|",
            x, (x >= 0 ? "+" : "-"), shigh, slow, exp);
-    printf("%x\n", ret);
+    fprintf(stderr, "%x\n", ret);
     return ret;
 }
