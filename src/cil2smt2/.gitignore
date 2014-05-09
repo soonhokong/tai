@@ -1,6 +1,8 @@
 *.byte
 *.log
 *.native
+*.smt2
+*.smt2.proof
 _build
 _tags
 myocamlbuild.ml
