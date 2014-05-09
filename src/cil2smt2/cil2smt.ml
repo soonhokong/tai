@@ -617,14 +617,14 @@ and translate_instrs info_entries ins (vc : Vcmap.t) : expr list * Vcmap.t =
                      let e = extract_E_exn v in
                      let open Basic in
                      let eps = 0.0001 in
-                     Imply (And [Ge (Num ((float_of_int index) -. eps), index_exp1);
-                                 Le (index_exp1, (Num ((float_of_int index) +. eps)))],
-                            Eq (dest, e))
+                     And [Le (Num ((float_of_int index) -. eps), index_exp1);
+                          Le (index_exp1, (Num ((float_of_int index) +. eps)));
+                          Eq (dest, e)]
                   )
                   imap
               in
               let values = List.of_enum (Map.values fmap) in
-              F (Basic.make_and values), vc3
+              F (Basic.make_or values), vc3
             | false ->
               let ty = typeOfLval lval in
               let exps, vc1 = translate_exps [e] vc in
