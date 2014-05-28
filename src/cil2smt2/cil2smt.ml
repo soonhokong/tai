@@ -101,12 +101,7 @@ let handle_call (info_entries : Info.t list) (x : lval) ((flhost, foffset) : lva
           (* f2 = (y <= (tmp3 + (xl + 1) * tmp4 *)
           let f2 = Le (Var (y_name ^ "0"), Add [Num tmp3; Mul [Add [Var xl; Num 1.0]; Num tmp4]]) in
           (* let f2 = True in *)
-          let f3 =
-            Basic.make_and [
-              Basic.Le (Num 0.0, Var xl);
-              Basic.Ge (Sin (Mul [Num Float.pi; Var xl]), Num (~-. eps));
-              Basic.Le (Sin (Mul [Num Float.pi; Var xl]), Num eps);]
-          in
+          let f3 = Basic.Le (Num 0.0, Var xl) in
           begin
             (* String.println IO.stdout ("tmp1            = " ^ Float.to_string tmp1); *)
             (* String.println IO.stdout ("tmp2            = " ^ Float.to_string tmp2); *)
@@ -130,7 +125,7 @@ let handle_call (info_entries : Info.t list) (x : lval) ((flhost, foffset) : lva
         | _ -> (F Basic.True, vc)
       with Not_found ->
         begin
-          (* String.println IO.stdout ("We don't handle " ^ fname ^ " function..."); *)
+          String.println IO.stdout ("We don't handle " ^ fname ^ " function...");
           (F Basic.True, vc)
         end
     end
@@ -616,10 +611,8 @@ and translate_instrs info_entries ins (vc : Vcmap.t) : expr list * Vcmap.t =
                   (fun index v ->
                      let e = extract_E_exn v in
                      let open Basic in
-                     let eps = 0.0001 in
-                     And [Le (Num ((float_of_int index) -. eps), index_exp1);
-                          Le (index_exp1, (Num ((float_of_int index) +. eps)));
-                          Eq (dest, e)]
+                     make_and [Eq (Num (float_of_int index), index_exp1);
+                               Eq (dest, e)]
                   )
                   imap
               in
@@ -635,10 +628,7 @@ and translate_instrs info_entries ins (vc : Vcmap.t) : expr list * Vcmap.t =
               begin
                 match (e', ty) with
                 | (E e', TInt (IInt, _)) ->
-                  (F (Basic.make_and [Basic.Eq (lval, e');
-                                      Basic.Ge (Sin (Mul [Num Float.pi; lval]), Num (~-. eps));
-                                      Basic.Le (Sin (Mul [Num Float.pi; lval]), Num eps);]
-                     ), vc3)
+                  (F (Basic.Eq (lval, e')), vc3)
                 | (E e', TFloat (FDouble, _)) -> (F (Basic.Eq (lval, e')), vc3)
                 | (E e', _) -> failwith "Set: only support an assignment to int or double type."
                 | (F _, _) -> failwith "should be an expression"
@@ -670,7 +660,7 @@ and translate_instrs info_entries ins (vc : Vcmap.t) : expr list * Vcmap.t =
     | Call (lv_opt, f, arg_list, l) ->
       begin
        match (lv_opt, f) with
-          (None, _) -> (F Basic.True, vc)
+          (None, _) -> (F Basic.True, vc)  (* TODO(soonhok): add assert *)
         | (Some x, Lval f') -> handle_call info_entries x f' arg_list vc l
         | _ -> failwith "not now call"
       end
