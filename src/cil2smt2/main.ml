@@ -37,7 +37,7 @@ let run () =
     end in
   let f = Cil2smt.translation !c_file !lb !ub info_entries in
   let vars = Set.to_list (collect_vars_in_formula f) in
-  let var_decls = List.map (fun v -> DeclareFun v) vars in
+  let var_decls = List.map (fun v -> declare_realvar v) vars in
   let logic_cmd = SetLogic QF_NRA in
   Smt2.print out
     (List.flatten
@@ -47,7 +47,9 @@ let run () =
          CheckSAT;
          Exit]])
 
-let _ = Arg.parse spec
-    (fun x -> check_file x; c_file := x) usage
-
-let _ = run ()
+let _ =
+  begin
+    Arg.parse spec
+      (fun x -> check_file x; c_file := x) usage;
+    run ()
+  end
