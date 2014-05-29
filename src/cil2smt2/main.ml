@@ -37,7 +37,18 @@ let run () =
     end in
   let f = Cil2smt.translation !c_file !lb !ub info_entries in
   let vars = Set.to_list (collect_vars_in_formula f) in
-  let var_decls = List.map (fun v -> declare_realvar v) vars in
+  let var_decls =
+    List.map
+      (fun v ->
+       try
+         match Map.find v !Cil2smt.vtype_map with
+         | Cil2smt.Real -> declare_realvar v
+         | Cil2smt.Int -> declare_intvar v
+       with Not_found ->
+         Printf.printf "%s not found" v;
+         declare_realvar v)
+      vars
+  in
   let logic_cmd = SetLogic QF_NRA in
   Smt2.print out
     (List.flatten

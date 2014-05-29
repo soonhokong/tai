@@ -31,6 +31,7 @@ open Batteries
   | Var      of string
   | Vec      of string list
   | Num      of float
+  | Int      of int
   | Neg      of exp
   | Add      of exp list
   | Sub      of exp list
@@ -105,6 +106,7 @@ open Batteries
       Var x -> Set.singleton x
     | Vec xs -> Set.of_list xs
     | Num _ -> Set.empty
+    | Int _ -> Set.empty
     | Neg e' -> collect_vars_in_exp e'
     | Add es | Sub es | Mul es -> collect_vars_in_exps es
     | Div (e1, e2) | Pow (e1, e2) | Atan2 (e1, e2) -> collect_vars_in_exps [e1;e2]
@@ -155,6 +157,7 @@ open Batteries
     function Var s     -> fn_e (Var      s)
     | Vec xs           -> fn_e (Vec      xs)
     | Num n            -> fn_e (Num      n)
+    | Int n            -> fn_e (Int      n)
     | Neg e'           -> fn_e (Neg      (map_exp fn_f fn_e e'))
     | Add es           -> fn_e (Add      (List.map (map_exp fn_f fn_e) es))
     | Sub es           -> fn_e (Sub      (List.map (map_exp fn_f fn_e) es))
@@ -241,6 +244,7 @@ open Batteries
         Var v -> if v = x then Num 1.0 else Num 0.0
       | Vec xs -> raise DerivativeNotFound
       | Num _ -> Num 0.0
+      | Int _ -> Num 0.0
       | Neg e' -> Neg (deriv e' x)
       | Add es -> Add (List.map (fun e' -> deriv e' x) es)
       | Sub es -> Sub (List.map (fun e' -> deriv e' x) es)
@@ -410,7 +414,7 @@ open Batteries
 
   let rec count_mathfn_e =
     function
-    | Var _ | Vec _ | Num _ -> 0
+    | Var _ | Vec _ | Num _ | Int _ -> 0
     | Neg e -> count_mathfn_e e
     | Add es | Sub es | Mul es -> List.sum (List.map count_mathfn_e es)
     | Div (e1, e2) | Pow (e1, e2) ->
@@ -452,7 +456,7 @@ open Batteries
 
   let rec count_arith_e =
     function
-    | Var _ | Vec _ | Num _ -> 0
+    | Var _ | Vec _ | Num _ | Int _ -> 0
     | Add es | Sub es | Mul es -> 1 + (List.sum (List.map count_arith_e es))
     | Div (e1, e2) | Pow (e1, e2) ->
       let v1 = count_arith_e e1 in
@@ -529,6 +533,7 @@ open Batteries
       Var x -> Set.singleton x
     | Vec xs -> Set.of_list xs
     | Num _ -> Set.empty
+    | Int _ -> Set.empty
     | Add el ->
       List.reduce Set.union (List.map collect_var_in_e el)
     | Sub el ->
@@ -594,6 +599,11 @@ open Batteries
           str_n'
       in
       String.print out str_n'
+
+    | Int n ->
+      let str_n = Printf.sprintf "%d" n in
+      String.print out str_n
+
     | Neg e' -> print_exps "-" [Num 0.0; e']
     | Add el -> print_exps "+" el
     | Sub el -> print_exps "-" el
@@ -791,6 +801,11 @@ open Batteries
         | false -> s
       in
       String.print out s'
+
+    | Int n ->
+      let s = Printf.sprintf "%d" n in
+      String.print out s
+
     | Neg e' -> print_infix_exps "-" [Num 0.0; e']
     | Add es -> print_infix_exps "+" es
     | Sub es -> print_infix_exps "-" es

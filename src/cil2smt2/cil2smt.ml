@@ -29,6 +29,13 @@ type expr =
   | E of Basic.exp
   | F of Basic.formula
 
+(* variable type  *)
+type vtype =
+  | Int
+  | Real
+
+let vtype_map:(string, vtype) Map.t ref = ref Map.empty
+
 let extract_E_exn =
   function E e -> e
          | F f -> failwith "Expression expected, but has formula"
@@ -204,6 +211,7 @@ class removeUnnecessaryCodeVisitor =
 let (arr_init_map :  ( (string, (int, expr) Map.t) Map.t) ref) = ref Map.empty
 
 let rec translation file_name lb ub info_entries =
+  vtype_map := Map.empty;
   let cil_file = Frontc.parse file_name () in
   visitCilFile (new removeUnnecessaryCodeVisitor) cil_file;
   if (Global.get_exn debug) then dumpFile defaultCilPrinter Pervasives.stdout "codegen" cil_file;
@@ -674,11 +682,22 @@ and translate_instrs info_entries ins (vc : Vcmap.t) : expr list * Vcmap.t =
     )
     ([], vc) ins
 
+and get_type =
+  function
+  | TInt _ -> Int
+  | TFloat _ -> Real
+  | _ -> failwith "can not convert to our type"
+
+and track_typ vi c =
+  if (Global.get_exn debug) then Printf.printf "add %s%d\n" vi.vname c else ();
+  vtype_map := Map.add (vi.vname ^ (string_of_int c)) (get_type vi.vtype) !vtype_map;
+
 and translate_lval l (vc : Vcmap.t) : Basic.exp * Vcmap.t =
   let (lhost, _) = l in
   match lhost with
   | Var vi ->
     let c, vc1 = lookup vi.vname vc in
+    track_typ vi c;
     Basic.Var (vi.vname ^ (string_of_int c)), vc1
   | _ -> failwith "not now (translate_lval)"
 
@@ -692,7 +711,7 @@ and extract_var_name l  =
 
 and translate_const (c : Cil.constant) =
   match c with
-  | CInt64 (i, _, _) -> Basic.Num (Int64.to_float i)
+  | CInt64 (i, _, _) -> Basic.Int (Int64.to_int i)
   | CStr _ -> failwith "not now string"
   | CWStr _ -> failwith "not now CWStr"
   | CChr _ -> failwith "not now char"
