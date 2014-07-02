@@ -50,94 +50,6 @@ let check_debug () = Global.get_exn debug
 (* let _ = Errormsg.verboseFlag := true *)
 
 let ignore_func_names = ["main"; "get_low_nbits"]
-let eps = 0.000001
-
-let handle_call (info_entries : Info.t list) (x : lval) ((flhost, foffset) : lval) (arg_list : Cil.exp list) (vc : Vcmap.t) (loc : Cil.location)
-  : expr * Vcmap.t
-  = match (flhost, foffset) with
-    (Var fvinfo, NoOffset) ->
-    begin
-      let open Info in
-      let fname = fvinfo.vname in
-      try
-        let info_entry = List.find
-            (fun i -> i.funcname = fname &&
-                      i.lineno   = loc.line &&
-                      i.filename = loc.file)
-            info_entries
-        in
-        (* String.println IO.stdout ("We do handle " ^ fname ^ " function..."); *)
-        match info_entry.funcname with
-          "GET_LOW_NBITS" ->
-          let args = info_entry.args in
-          let info = info_entry.info in
-          let ret  = info_entry.ret in
-          let y_name = List.at args 0 in (* u *)
-          let n = Int.of_string (List.at args 1) in (* 32 *)
-          let y_val = Float.of_string (List.at info 0) in (* 52776558133248.5 *)
-          let y_sign = (List.at info 1) = "+" in
-          let significant_high = Int64.of_string ("0x" ^ (List.at info 2)) in
-          let significant_low  = Int64.of_string ("0x" ^ (List.at info 3)) in
-          let exponent         = Int.of_string (List.at info 4) in
-          let xh0 = if n <= 32 then
-              Int64.add
-                (Int64.shift_right_logical significant_low n)
-                (Int64.shift_left significant_high (32 - n))
-            else
-              Int64.shift_right_logical significant_low (32 - n)
-          in
-          let tmp1 = Float.pow 2.0 (Float.of_int exponent) in (* 2 ^ e0 *)
-          let tmp2 = (Int64.to_float xh0) *.
-                     (Float.pow 2.0 (Float.of_int (-52 + n + exponent))) in (* x_h * 2 ^ (-52 + n + e) *)
-          let tmp3 = tmp1 +. tmp2 in (* 2^e0 + x_h * 2 ^ (-52 + n + e) *)
-          let tmp4 = Float.pow 2.0 (Float.of_int (-52 + exponent)) in (* 2 ^ (-52 + e0) *)
-          let xl = match x with
-            | (Var xvinfo, NoOffset) ->
-              let xname = xvinfo.vname in
-              let (subscript, vc') = Vcmap.lookup xname vc in
-              (xname ^ (String.of_int subscript))
-            | _ -> failwith "x must be Var + NoOffset"
-          in
-          (* f1 = (tmp3 + xl * tmp4 <= y) *)
-          let f1 = Le (Add [Num tmp3; Mul [Var xl; Num tmp4]], Var (y_name ^ "0")) in
-          (* let f1 = Eq ( *)
-          (*     Add [Log (Var xl); *)
-          (*          Mul [Num (float_of_int (-52 + exponent + n)) ; *)
-          (*               Num (Float.log 2.0)]], *)
-          (*     Log (Sub [Var y_name; Num tmp3])) in *)
-          (* f2 = (y <= (tmp3 + (xl + 1) * tmp4 *)
-          let f2 = Le (Var (y_name ^ "0"), Add [Num tmp3; Mul [Add [Var xl; Num 1.0]; Num tmp4]]) in
-          (* let f2 = True in *)
-          let f3 = Basic.Le (Num 0.0, Var xl) in
-          begin
-            (* String.println IO.stdout ("tmp1            = " ^ Float.to_string tmp1); *)
-            (* String.println IO.stdout ("tmp2            = " ^ Float.to_string tmp2); *)
-            (* String.println IO.stdout ("tmp3            = " ^ Float.to_string tmp3); *)
-            (* String.println IO.stdout ("tmp4            = " ^ Float.to_string tmp4); *)
-            (* String.println IO.stdout ("y_val            = " ^ Float.to_string y_val); *)
-            (* String.println IO.stdout ("n                = " ^ Int.to_string n); *)
-            (* String.println IO.stdout ("xl                = " ^ xl); *)
-            (* String.print IO.stdout ("significant_high = "); *)
-            (* Int64.print_hex IO.stdout significant_high; *)
-            (* String.println IO.stdout ""; *)
-            (* String.print IO.stdout ("significant_low = "); *)
-            (* Int64.print_hex IO.stdout significant_low; *)
-            (* String.println IO.stdout ""; *)
-            (* String.print IO.stdout ("xh0 = "); *)
-            (* Int64.print_hex IO.stdout xh0; *)
-            (* String.println IO.stdout ""; *)
-            (* String.println IO.stdout ("exp              = " ^ Int.to_string exponent); *)
-            (F (make_and [f1; f2; f3]), vc)
-          end
-        | _ -> (F Basic.True, vc)
-      with Not_found ->
-        begin
-          String.println IO.stdout ("We don't handle " ^ fname ^ " function...");
-          (F Basic.True, vc)
-        end
-    end
-  | (Var vinfo, _) -> failwith "handle_call only support (Var _, NoOffset) at this time"
-  | (Mem _, _) -> failwith "handle_call only support (Var _, NoOffset) at this time"
 
 let is_exp e =
   match e with
@@ -666,11 +578,9 @@ and translate_instrs info_entries ins (vc : Vcmap.t) : expr list * Vcmap.t =
         | _ -> failwith "todo _"
       end;
     | Call (lv_opt, f, arg_list, l) ->
-      begin
-       match (lv_opt, f) with
-          (None, _) -> (F Basic.True, vc)  (* TODO(soonhok): add assert *)
-        | (Some x, Lval f') -> handle_call info_entries x f' arg_list vc l
-        | _ -> failwith "not now call"
+      begin match f with
+          Lval f' -> handle_call info_entries lv_opt f' arg_list l vc (* lv_opt = f' (arg_list) *)
+        | _ -> failwith "Call has to be in the form, x = f (arg_list)"
       end
     | Asm _ -> failwith "not now asm"
   in
@@ -717,3 +627,75 @@ and translate_const (c : Cil.constant) =
   | CChr _ -> failwith "not now char"
   | CReal (f, _, _) -> Basic.Num f
   | CEnum _ -> failwith "not now enum"
+
+and handle_call (info_entries : Info.t list) (lv_opt : lval option) ((flhost, foffset) : lval) (arg_list : Cil.exp list) (loc : Cil.location) (vc : Vcmap.t)
+  : expr * Vcmap.t
+  = match (flhost, foffset) with
+    (Var fvinfo, NoOffset) ->
+    let fname = fvinfo.vname in
+    begin
+      match fname with
+        "GET_LOW_NBITS" ->
+        begin
+          let open Info in
+          try
+            let info_entry = List.find
+                (fun i -> i.funcname = fname &&
+                          i.lineno   = loc.line &&
+                          i.filename = loc.file)
+                info_entries
+            in
+            (* String.println IO.stdout ("We do handle " ^ fname ^ " function..."); *)
+            let args = info_entry.args in
+            let info = info_entry.info in
+            let ret  = info_entry.ret in
+            let y_name = List.at args 0 in (* u *)
+            let n = Int.of_string (List.at args 1) in (* 32 *)
+            let y_val = Float.of_string (List.at info 0) in (* 52776558133248.5 *)
+            let y_sign = (List.at info 1) = "+" in
+            let significant_high = Int64.of_string ("0x" ^ (List.at info 2)) in
+            let significant_low  = Int64.of_string ("0x" ^ (List.at info 3)) in
+            let exponent         = Int.of_string (List.at info 4) in
+            let xh0 = if n <= 32 then
+                Int64.add
+                  (Int64.shift_right_logical significant_low n)
+                  (Int64.shift_left significant_high (32 - n))
+              else
+                Int64.shift_right_logical significant_low (32 - n)
+            in
+            let tmp1 = Float.pow 2.0 (Float.of_int exponent) in (* 2 ^ e0 *)
+            let tmp2 = (Int64.to_float xh0) *.
+                       (Float.pow 2.0 (Float.of_int (-52 + n + exponent))) in (* x_h * 2 ^ (-52 + n + e) *)
+            let tmp3 = tmp1 +. tmp2 in (* 2^e0 + x_h * 2 ^ (-52 + n + e) *)
+            let tmp4 = Float.pow 2.0 (Float.of_int (-52 + exponent)) in (* 2 ^ (-52 + e0) *)
+            let xl = match lv_opt with
+              | Some (Var xvinfo, NoOffset) ->
+                let xname = xvinfo.vname in
+                let (subscript, vc') = Vcmap.lookup xname vc in
+                (xname ^ (String.of_int subscript))
+              | _ -> failwith "x must be Var + NoOffset"
+            in
+            (* f1 = (tmp3 + xl * tmp4 <= y) *)
+            let f1 = Le (Add [Num tmp3; Mul [Var xl; Num tmp4]], Var (y_name ^ "0")) in
+            (* f2 = (y <= (tmp3 + (xl + 1) * tmp4 *)
+            let f2 = Le (Var (y_name ^ "0"), Add [Num tmp3; Mul [Add [Var xl; Num 1.0]; Num tmp4]]) in
+            let f3 = Basic.Le (Num 0.0, Var xl) in
+            begin
+              (F (make_and [f1; f2; f3]), vc)
+            end
+          with Not_found ->
+            begin
+              String.println IO.stdout ("We don't handle " ^ fname ^ " function...");
+              (F Basic.True, vc)
+            end
+        end
+      | "assert" ->
+        let (fs, vc') = translate_exps arg_list vc in
+        let f_0 = List.at fs 0 in
+        let f_formula = extract_F_exn f_0 in
+        let f_formula_not = Not f_formula in
+        (F f_formula_not, vc')
+      | _ -> failwith "handle_call: not yet."
+    end
+  | (Var vinfo, _) -> failwith "handle_call only support (Var _, NoOffset) at this time"
+  | (Mem _, _) -> failwith "handle_call only support (Var _, NoOffset) at this time"
