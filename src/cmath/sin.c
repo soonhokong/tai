@@ -1,4 +1,6 @@
 #include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
 #include <fenv.h>
 #include <errno.h>
 //-------------------------------------------------------------------------------
@@ -1600,15 +1602,11 @@ csloww2(double x, double dx, double orig, int n) {
     }
 }
 
-int main() {
+int main(int argc, char** argv) {
     fesetround(FE_DOWNWARD);
-    double x = 2.4926729992768197341;
-    printf("sin(%.30g) = %.30g\n", x, __sin(x));
-    /* for (double x = -3.0; x < 3.0; x += 0.000001) { */
-    /*     if (__sin(x) > 2 || __sin(x) < -2) { */
-    /*         printf("sin(%.30g) = %.30g\n", x, __sin(x)); */
-    /*         printf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"); */
-    /*     } */
-    /* } */
+    double x = atof(argv[1]);
+    printf("           x = %.30g\n", x);
+    printf("__sin(%.30g) = %.30g\n", x, __sin(x));
+    printf("  sin(%.30g) = %.30g\n", x,   sin(x));
     return 0;
 }

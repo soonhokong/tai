@@ -531,13 +531,13 @@ and translate_instrs info_entries ins (vc : Vcmap.t) : expr list * Vcmap.t =
                   (fun index v ->
                      let e = extract_E_exn v in
                      let open Basic in
-                     make_and [Eq (Num (float_of_int index), index_exp1);
-                               Eq (dest, e)]
+                     Imply (Eq (Num (float_of_int index), index_exp1),
+                               Eq (dest, e))
                   )
                   imap
               in
               let values = List.of_enum (Map.values fmap) in
-              F (Basic.make_or values), vc3
+              F (Basic.make_and values), vc3
             | false ->
               let ty = typeOfLval lval in
               let exps, vc1 = translate_exps [e] vc in
@@ -685,7 +685,7 @@ and handle_call (info_entries : Info.t list) (lv_opt : lval option) ((flhost, fo
             end
           with Not_found ->
             begin
-              String.println IO.stdout ("We don't handle " ^ fname ^ " function...");
+              String.println IO.stderr ("We don't handle " ^ fname ^ " function...");
               (F Basic.True, vc)
             end
         end
@@ -695,7 +695,7 @@ and handle_call (info_entries : Info.t list) (lv_opt : lval option) ((flhost, fo
         let f_formula = extract_F_exn f_0 in
         let f_formula_not = Not f_formula in
         (F f_formula_not, vc')
-      | _ -> failwith "handle_call: not yet."
+      | _ -> failwith ("handle_call: " ^ fname ^ " not yet.")
     end
   | (Var vinfo, _) -> failwith "handle_call only support (Var _, NoOffset) at this time"
   | (Mem _, _) -> failwith "handle_call only support (Var _, NoOffset) at this time"
