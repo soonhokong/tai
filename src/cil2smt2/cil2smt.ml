@@ -525,19 +525,27 @@ and translate_instrs info_entries ins (vc : Vcmap.t) : expr list * Vcmap.t =
               let s = extract_index_term e in
               let vc2 = update s vc1 in
               let dest, vc3 = translate_lval lval vc2 in
-              let imap = Map.find s !arr_init_map in
-              let fmap =
+              let imap : (int, expr) BatMap.t = Map.find s !arr_init_map in
+              let fmap : (int, formula * formula) BatMap.t =
                 Map.mapi
+                  (*  array = { (index_i, v_i) }           *)
+                  (* (index_exp = 0  ) => (dest = v_0)     *)
+                  (* (index_exp = 1  ) => (dest = v_1)     *)
+                  (*                  ...                  *)
+                  (* (index_exp = n-1) => (dest = v_{n-1}) *)
                   (fun index v ->
                      let e = extract_E_exn v in
                      let open Basic in
-                     Imply (Eq (Num (float_of_int index), index_exp1),
-                               Eq (dest, e))
+                     (Eq (Num (float_of_int index), index_exp1),
+                      Eq (dest, e))
                   )
                   imap
               in
-              let values = List.of_enum (Map.values fmap) in
-              F (Basic.make_and values), vc3
+              let values : (formula * formula) list = List.of_enum (Map.values fmap) in
+              let implications = List.map (fun (f1, f2) -> Imply (f1, f2)) values in
+              let index_conds = List.map (fun (f1, f2) -> f1) values in
+              F (Basic.make_and ((Basic.make_or index_conds)::implications)), vc3
+              (* F (Basic.make_and implications), vc3 *)
             | false ->
               let ty = typeOfLval lval in
               let exps, vc1 = translate_exps [e] vc in
