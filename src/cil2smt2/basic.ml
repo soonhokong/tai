@@ -589,16 +589,25 @@ open Batteries
                            (fun out x -> print_exp out (Var x))
                            out
                            xs
-    | Num n ->
-      let str_n = Printf.sprintf "%.30f" n in
-      let str_n' = Str.global_replace (Str.regexp "0+$") "0" str_n in
-      let str_n'' =
-        if String.ends_with str_n' "." then
-          str_n' ^ "0"
-        else
-          str_n'
+    | Num f ->
+      let double_norm = Int64.shift_left 1L 52 in
+      let double_mask = Int64.pred double_norm in
+      let i = Int64.bits_of_float f in
+      let s = 0L <> (Int64.logand Int64.min_int i) in
+      let i = Int64.logand Int64.max_int i in
+      let exp = Int64.to_int (Int64.shift_right_logical i 52) in
+      let man = Int64.logand i double_mask in
+      let s = if s then "-" else "" in
+      let firstdigit, exp =
+        if exp <> 0
+        then 1, (exp - 1023)
+        else 0, -1022
       in
-      String.print out str_n'
+      Printf.fprintf out "%s0x%d.%013Lxp%d"
+        s
+        firstdigit
+        man
+        exp
 
     | Int n ->
       let str_n = Printf.sprintf "%d" n in
