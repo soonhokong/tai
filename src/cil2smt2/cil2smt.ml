@@ -653,43 +653,28 @@ and handle_call (info_entries : Info.t list) (lv_opt : lval option) ((flhost, fo
                           i.filename = loc.file)
                 info_entries
             in
-            (* String.println IO.stdout ("We do handle " ^ fname ^ " function..."); *)
+            (* x = get_low_n_bit(y, n) *)
             let args = info_entry.args in
             let info = info_entry.info in
-            let ret  = info_entry.ret in
+            let ret_val  = Int.of_string ("0x" ^ info_entry.ret) in
             let y_name = List.at args 0 in (* u *)
-            let n = Int.of_string (List.at args 1) in (* 32 *)
             let y_val = Float.of_string (List.at info 0) in (* 52776558133248.5 *)
-            let y_sign = (List.at info 1) = "+" in
-            let significant_high = Int64.of_string ("0x" ^ (List.at info 2)) in
-            let significant_low  = Int64.of_string ("0x" ^ (List.at info 3)) in
-            let exponent         = Int.of_string (List.at info 4) in
-            let xh0 = if n <= 32 then
-                Int64.add
-                  (Int64.shift_right_logical significant_low n)
-                  (Int64.shift_left significant_high (32 - n))
-              else
-                Int64.shift_right_logical significant_low (32 - n)
-            in
-            let tmp1 = Float.pow 2.0 (Float.of_int exponent) in (* 2 ^ e0 *)
-            let tmp2 = (Int64.to_float xh0) *.
-                       (Float.pow 2.0 (Float.of_int (-52 + n + exponent))) in (* x_h * 2 ^ (-52 + n + e) *)
-            let tmp3 = tmp1 +. tmp2 in (* 2^e0 + x_h * 2 ^ (-52 + n + e) *)
-            let tmp4 = Float.pow 2.0 (Float.of_int (-52 + exponent)) in (* 2 ^ (-52 + e0) *)
-            let xl = match lv_opt with
+            let x_var_name = match lv_opt with
               | Some (Var xvinfo, NoOffset) ->
                 let xname = xvinfo.vname in
                 let (subscript, vc') = Vcmap.lookup xname vc in
                 (xname ^ (String.of_int subscript))
               | _ -> failwith "x must be Var + NoOffset"
             in
+            let y_var_name =
+              let (y_index, _) = Vcmap.lookup y_name vc in
+              (y_name ^ (String.of_int y_index))
+            in
             (* f1 = (tmp3 + xl * tmp4 <= y) *)
-            let f1 = Le (Add [Num tmp3; Mul [Var xl; Num tmp4]], Var (y_name ^ "0")) in
-            (* f2 = (y <= (tmp3 + (xl + 1) * tmp4 *)
-            let f2 = Le (Var (y_name ^ "0"), Add [Num tmp3; Mul [Add [Var xl; Num 1.0]; Num tmp4]]) in
-            let f3 = Basic.Le (Num 0.0, Var xl) in
+            let f1 = Eq (Var y_var_name, Num y_val) in
+            let f2 = Eq (Var x_var_name, Num (Float.of_int ret_val)) in
             begin
-              (F (make_and [f1; f2; f3]), vc)
+              (F (make_and [f1; f2]), vc)
             end
           with Not_found ->
             begin
